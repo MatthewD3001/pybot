@@ -15,9 +15,26 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
+    msg = message.content
+    if msg.startswith('>letter'):
+        await message.channel.send('writing letter: ' + extract_content(msg))
 
-    if message.content.startswith('hello'):
-        await message.channel.send('Oink!')
+    elif msg.startswith('>write-santa'):
+        await message.channel.send('writing to santa: ' + extract_content(msg))
+
+    elif msg.startswith('>write-giftee'):
+        await message.channel.send('writing to giftee: ' + extract_content(msg))
+
+    elif msg.startswith('>read'):
+        await message.channel.send('reading!!!')
+
+def extract_content(msg):
+    for i in range(0, len(msg)):
+        if msg[i] == ' ' or msg[i] == '\n':
+            if msg[i + 1] == '\n':
+                return msg[i + 2:]
+            else:
+                return msg[i + 1:]
 
 file = open("../../pass/bottoken.txt", "r")
 token = file.read()
