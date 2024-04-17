@@ -17,7 +17,7 @@ async def on_message(message):
         return
     msg = message.content
     if msg.startswith('>letter'):
-        await message.channel.send('writing letter: ' + extract_content(msg))
+        await message.channel.send('writing letter: ' + extract_content(msg) + '\nThis was sent by: ' + str(message.author.id))
 
     elif msg.startswith('>write-santa'):
         await message.channel.send('writing to santa: ' + extract_content(msg))
@@ -27,6 +27,12 @@ async def on_message(message):
 
     elif msg.startswith('>read'):
         await message.channel.send('reading!!!')
+
+    # Admin Commands
+    elif message.author.id == 369982786356117504:
+        if msg.startswith('>shutdown'):
+        else:
+            await message.channel.send('hi admin, invalid command!')
 
 def extract_content(msg):
     for i in range(0, len(msg)):
