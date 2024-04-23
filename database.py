@@ -1,6 +1,8 @@
 import sqlite3
 import random
 
+
+
 def init_db():
     global conn
     global cur
@@ -8,97 +10,160 @@ def init_db():
     cur = conn.cursor()
 
     cur.execute("""
-        DROP TABLE IF EXISTS users;
+        DROP TABLE IF EXISTS Users;
+    """)
+    cur.execute("""
+        DROP TABLE IF EXISTS Swap;
+    """)
+    cur.execute("""
+        DROP TABLE IF EXISTS SwapStatus;
     """)
     conn.commit()
 
     cur.execute("""
-        CREATE TABLE users(
-            user_id int,
-            letter text,
-            submit text,
-            in_swap int,
-            banned int,
-            giftee_id int,
-            PRIMARY KEY(user_id)
+        CREATE TABLE Users(
+            uid INTEGER PRIMARY KEY,
+            user_id TEXT NOT NULL UNIQUE,
+            letter TEXT,
+            in_swap INTEGER,
+            banned INTEGER,
+            reason TEXT
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE Swap(
+            uid INTEGER PRIMARY KEY,
+            santa_id TEXT NOT NULL,
+            giftee_id TEXT NOT NULL,
+            submit TEXT,
+            CONSTRAINT fk_users
+                FOREIGN KEY(santa_id)
+                REFERENCES Users(user_id)
+                ON DELETE CASCADE
+                FOREIGN KEY(giftee_id)
+                REFERENCES Users(user_id)
+                ON DELETE CASCADE
+        );
+    """)
+    cur.execute("""
+        CREATE TABLE SwapStatus(
+            swap_started INTEGER
+        );
+    """)
+    conn.commit()
+    cur.execute("""
+        INSERT INTO SwapStatus VALUES(
+            0
         );
     """)
     conn.commit()
     
     add_user(477096301364903936, "toby's letter")
     add_user(105365884951863296, "noon's letter")
+    add_user(439139492427988992, "cobra's letter")
+    add_user(687300286066458653, "qb's letter")
+    add_user(66207186417627136, "Something abt lolis")
+    add_user(160763614888722433, "cirix's letter")
 
-def close_db():
+def close_db() -> None:
     conn.close()
 
 
-def get_user_ids_in_swap() -> list:
+def get_user_ids_in_swap() -> set:
     cur.execute("""
-        SELECT user_id
-        FROM users
-        WHERE in_swap = 1
+        SELECT santa_id
+        FROM Swap
     """)
-    user_ids = cur.fetchall()
-    for index in range(len(user_ids)):
-        user_ids[index] = user_ids[index][0]
+    santa_ids = cur.fetchall()
+    user_ids = set()
+    for index in range(len(santa_ids)):
+        user_ids.add(int(santa_ids[index][0]))
     return user_ids
 
 def get_user_id_in_swap() -> int:
     cur.execute("""
         SELECT user_id
-        FROM users
+        FROM Users
         WHERE in_swap = 1
         LIMIT 1
     """)
-    return cur.fetchone()[0]
+    return int(cur.fetchone()[0])
 
 
-def start_swap():
-    santa_ids = get_user_ids_in_swap()
+def start_swap() -> None:
+    cur.execute("""
+        SELECT user_id
+        FROM Users
+        WHERE in_swap = 1
+    """)
+    tmp_ids = cur.fetchall()
+    santa_ids = []
+    for id in tmp_ids:
+        santa_ids.append(id[0])
     random.shuffle(santa_ids)
     for index in range(len(santa_ids) - 1):
-        set_giftee(santa_ids[index], santa_ids[index + 1])
-    set_giftee(santa_ids[len(santa_ids) - 1], santa_ids[0])
+        add_giftee(santa_ids[index], santa_ids[index + 1])
+    add_giftee(santa_ids[len(santa_ids) - 1], santa_ids[0])
+    cur.execute("""
+        UPDATE SwapStatus
+        SET swap_started = 1
+    """)
 
     list_users()
 
 
-def get_giftee(santa_id: int):    
+def swap_started() -> bool:
+    cur.execute("""
+        SELECT swap_started
+        FROM SwapStatus
+        LIMIT 1
+    """)
+    if cur.fetchone()[0] == 1:
+        return True
+    else:
+        return False
+
+
+def get_giftee(santa_id: int) -> int:    
     cur.execute(f"""
         SELECT giftee_id
-        FROM users
-        WHERE user_id = {santa_id}
+        FROM Swap
+        WHERE santa_id = '{santa_id}'
     """)
-    return cur.fetchone()[0]
+    return int(cur.fetchone()[0])
 
 
-def set_giftee(user_id: int, giftee_id: int):
+def add_giftee(user_id: int, giftee_id: int) -> None:
     cur.execute(f"""
-        UPDATE users
-        SET giftee_id = {giftee_id}
-        WHERE user_id = {user_id}
+        INSERT INTO Swap VALUES (
+            NULL,
+            '{user_id}',
+            '{giftee_id}',
+            ''
+        );
     """)
     conn.commit()
 
 
-def add_user(user_id: int, letter: str=''):
+def add_user(user_id: int, letter: str='') -> None:
     cur.execute(f"""
-        INSERT INTO users VALUES (
-            {user_id},
+        INSERT INTO Users VALUES (
+            NULL,
+            '{user_id}',
             "{letter}",
-            '',
             1,
             0,
-            0
+            ''
         );
     """)
     conn.commit()
     list_users()    
 
-def remove_user(user_id: int):
+
+def remove_user(user_id: int) -> None:
     cur.execute(f"""
-        DELETE FROM users
-        WHERE user_id = {user_id}
+        DELETE FROM Users
+        WHERE user_id = '{user_id}'
     """)
     conn.commit()
     list_users()    
@@ -107,42 +172,56 @@ def remove_user(user_id: int):
 def get_in_swap(user_id: int) -> bool:
     cur.execute(f"""
         SELECT in_swap
-        FROM users
-        WHERE user_id = {user_id}
+        FROM Users
+        WHERE user_id = '{user_id}'
     """)
     result = cur.fetchone()[0]
-    print(f'result: {result}')
     if result == 1:
         return True
     else:
         return False
 
 
-def set_in_swap(user_id: int, in_swap: int):
-    cur.execute(f"""
-        UPDATE users
-        SET in_swap = {in_swap}
-        WHERE user_id = {user_id}
-    """)
-    conn.commit()
-
-def set_ban(user_id: int, ban_status: int):
-    cur.execute(f"""
-        UPDATE users
-        SET banned = {ban_status}
-        WHERE user_id = {user_id}
-    """)
-    conn.commit()
-    if ban_status == 1:
+def leave_swap(user_id: int) -> None:
+    if swap_started():
+        set_ban(user_id, 1)
+        # TODO: Make sure to reassign giftee
+        
+    else:
         set_in_swap(user_id, 0)
     list_users()    
 
 
+def set_in_swap(user_id: int, in_swap: int) -> None:
+    cur.execute(f"""
+        UPDATE Users
+        SET in_swap = {in_swap}
+        WHERE user_id = '{user_id}'
+    """)
+    conn.commit()
+
+
+def set_ban(user_id: int, ban_status: int) -> None:
+    cur.execute(f"""
+        UPDATE Users
+        SET banned = {ban_status}
+        WHERE user_id = '{user_id}'
+    """)
+    conn.commit()
+    cur.execute(f"""
+        SELECT in_swap
+        FROM Users
+        WHERE user_id = '{user_id}'
+    """)
+    if cur.fetchone()[0] == 1 and ban_status == 1:
+        set_in_swap(user_id, 0)
+
+
 def in_db(user_id: int) -> bool:
     cur.execute(f"""
-        SELECT rowid
-        FROM users
-        WHERE user_id = {user_id}
+        SELECT uid
+        FROM Users
+        WHERE user_id = '{user_id}'
     """)
     result = cur.fetchone()
     if result != None:
@@ -154,8 +233,8 @@ def in_db(user_id: int) -> bool:
 def is_banned(user_id: int) -> bool:
     cur.execute(f"""
         SELECT banned
-        FROM users
-        WHERE user_id = {user_id}
+        FROM Users
+        WHERE user_id = '{user_id}'
     """)
     result = cur.fetchone()[0]
     if result == 1:
@@ -167,30 +246,40 @@ def is_banned(user_id: int) -> bool:
 def get_letter(user_id: int) -> str:
     cur.execute(f"""
         SELECT letter
-        FROM users
-        WHERE user_id = {user_id}
+        FROM Users
+        WHERE user_id = '{user_id}'
     """)
     letter = cur.fetchone()[0]
-    #letter = letter[2 : len(letter) - 3]
 
     return letter
 
-def edit_letter(user_id: int, letter: str):
+
+def edit_letter(user_id: int, letter: str) -> None:
     cur.execute(f"""
-        UPDATE users
+        UPDATE Users
         SET letter = "{letter}"
-        WHERE user_id = {user_id}
+        WHERE user_id = '{user_id}'
     """)
     conn.commit()
     list_users()    
 
-def list_users():
+
+def list_users() -> None:
     cur.execute("""
-        SELECT * FROM users; 
+        SELECT * FROM Users; 
     """)
     
     items = cur.fetchall()
-    print()
+    print('\nUsers:')
+    for item in items:
+        print(item) 
+
+    cur.execute("""
+        SELECT * FROM Swap;
+    """)
+
+    items = cur.fetchall()
+    print('Swap:')
     for item in items:
         print(item) 
 

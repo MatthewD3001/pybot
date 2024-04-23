@@ -15,8 +15,8 @@ async def on_ready():
     print('\n-------------------------')
     print(f'Logged in as {bot.user}')
     print('-------------------------\n')
-
     db.init_db()
+
 
 @bot.command()
 async def join(ctx):
@@ -41,10 +41,12 @@ async def leave(ctx):
         if db.is_banned(user.id):
             await ctx.send(f'You\'ve already left swap due to being banned.')
         else:
-            db.set_in_swap(user.id, 0)
+            # TODO: Confirm message
+            db.leave_swap(user.id)
             await ctx.send(f'You have left the swap, we\'ll miss you, {user.name}!')
     else:
         await ctx.send(f'You\'re not in swap! You should reconsider and join instead, {user.name}!')
+
 
 @bot.command()
 async def letter(ctx, *, msg: str=''):
@@ -65,8 +67,18 @@ async def letter(ctx, *, msg: str=''):
 
 
 @bot.command()
+async def read(ctx):
+    if db.swap_started():
+        giftee_id: int = db.get_giftee(ctx.author.id)
+        await ctx.send(f'Your giftee is\n## {giftee_id}\nHere\'s their letter:')
+        await ctx.send(f'Dear Santa,\n\n{db.get_letter(giftee_id)}\n\nLove, {giftee_id}')
+    else:
+        await ctx.send('Swap hasn\'t started yet!!')
+
+
+@bot.command()
 async def ryuu(ctx):
-    await ctx.send(':umu:')
+    await ctx.send('<:umu:1232366655535972362>')
 
 
 #############################
@@ -75,7 +87,7 @@ async def ryuu(ctx):
 #                           #
 #############################
 @bot.command()
-async def shutdown(ctx):
+async def sd(ctx):
     if ctx.author.id == 369982786356117504:
         await ctx.send('Shutting down...')
         db.close_db()
@@ -104,18 +116,32 @@ async def start(ctx):
 @bot.command()
 async def list_swap(ctx):
     if ctx.author.id == 369982786356117504:
-        giftee_ids = db.get_user_ids_in_swap()
+        santa_ids = db.get_user_ids_in_swap()
         output = "## Users in this swap:\n"
-        cur_id = giftee_ids[0]
-        for i in range(len(giftee_ids)):
-            user = bot.get_user(cur_id)
+        first_id = santa_ids.pop()
+        id = first_id
+        for _ in range(len(santa_ids) + 1):
+            user = bot.get_user(id)
             if user != None:
                 output += str(user.name) + " -> "
             else:
-                output += str(cur_id) + " -> "
-            cur_id = db.get_giftee(cur_id)
-        output += str(giftee_ids[0])
+                output += str(id) + " -> "
+            id = db.get_giftee(id)
+
+        user = bot.get_user(first_id)
+        if user != None:
+            output += str(user.name)
+        else:
+            output += str(first_id)
         await ctx.send(output)
+    else:
+        await ctx.send('You\'re no admin!! :bonk:')
+
+
+@bot.command()
+async def debug(ctx):
+    if ctx.author.id == 369982786356117504:
+        db.list_users()
     else:
         await ctx.send('You\'re no admin!! :bonk:')
 
