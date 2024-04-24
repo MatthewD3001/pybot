@@ -36,10 +36,11 @@ def init_db():
             santa_id TEXT NOT NULL,
             giftee_id TEXT NOT NULL,
             submit TEXT,
-            CONSTRAINT fk_users
+            CONSTRAINT fk_santas
                 FOREIGN KEY(santa_id)
                 REFERENCES Users(user_id)
-                ON DELETE CASCADE
+                ON DELETE CASCADE,
+            CONSTRAINT fk_giftees
                 FOREIGN KEY(giftee_id)
                 REFERENCES Users(user_id)
                 ON DELETE CASCADE
@@ -64,6 +65,7 @@ def init_db():
     add_user(687300286066458653, "qb's letter")
     add_user(66207186417627136, "Something abt lolis")
     add_user(160763614888722433, "cirix's letter")
+    add_user(316084228943249413, "scar's letter")
 
 def close_db() -> None:
     conn.close()

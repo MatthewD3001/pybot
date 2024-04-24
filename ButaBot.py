@@ -10,6 +10,29 @@ intents.members = True
 
 bot = commands.Bot(command_prefix = '>', intents = intents)
 
+
+class ConfirmLeave(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=30)
+        self.value = None
+
+    @discord.ui.button(label = 'Leave', style = discord.ButtonStyle.red)
+    async def confirm(self, interaction, button):
+        button.label = 'Left'
+        button.disabled = True
+        self.value = True
+        await interaction.response.edit_message(view=self)
+        self.stop()
+
+    @discord.ui.button(label = 'Stay', style = discord.ButtonStyle.green)
+    async def cancel(self, interaction, button):
+        button.label = 'Stayed'
+        button.disabled = True
+        self.value = False
+        await interaction.response.edit_message(view=self)
+        self.stop()
+
+
 @bot.event
 async def on_ready():
     print('\n-------------------------')
@@ -41,9 +64,19 @@ async def leave(ctx):
         if db.is_banned(user.id):
             await ctx.send(f'You\'ve already left swap due to being banned.')
         else:
-            # TODO: Confirm message
-            db.leave_swap(user.id)
-            await ctx.send(f'You have left the swap, we\'ll miss you, {user.name}!')
+            view = ConfirmLeave()
+            await ctx.send(f'Are you sure that you want to leave, {user.name}?\nRemember, if swap has started then leaving will result in you being banned from the next swap.', view=view)
+            
+            await view.wait()
+            if view.value is None:
+                await ctx.send('The interaction timed out, nothing was performed, please redo your command if you wish to try again.')
+                return
+            elif view.value is True:
+                db.leave_swap(user.id)
+                await ctx.send(f'You have left the swap, we\'ll miss you, {user.name}!')
+            else:
+                await ctx.send(f'Thanks for choosing to stay, {user.name}! <3')
+
     else:
         await ctx.send(f'You\'re not in swap! You should reconsider and join instead, {user.name}!')
 
