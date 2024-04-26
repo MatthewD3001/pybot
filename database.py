@@ -1,12 +1,10 @@
 import sqlite3
 import random
 
-
-
 def init_db():
     global conn
     global cur
-    conn = sqlite3.connect('data/users/swap.db')
+    conn = sqlite3.connect('data/swap.db')
     cur = conn.cursor()
 
     cur.execute("""
